@@ -31,6 +31,8 @@ protected:
     TrackInfoN106 trkinfo[8];
     int option[OPT_END];
 
+    bool trigger;
+
     bool master_disable;
     UINT32 reg[0x80]; // all state is contained here
     unsigned int reg_select;
@@ -65,6 +67,7 @@ public:
     virtual void SetClock (double);
     virtual void SetOption (int, int);
     virtual void SetMask (int m);
+    virtual void SetTrigger(bool t){ trigger = t; };
     virtual void SetStereoMix (int trk, INT16 mixl, INT16 mixr);
     virtual ITrackInfo *GetTrackInfo(int trk);
 };

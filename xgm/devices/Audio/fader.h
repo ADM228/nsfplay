@@ -85,7 +85,7 @@ namespace xgm
       d->Render (b);
       if (fade_pos > 0)
       {
-        double fade_amount = double(fade_end - fade_pos) / double(fade_end);
+        double fade_amount = double(fade_end - fade_pos + 1) / double(fade_end);
         b[0] = INT32(fade_amount * b[0]);
         b[1] = INT32(fade_amount * b[1]);
 

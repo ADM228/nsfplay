@@ -44,6 +44,10 @@ struct Nsf2WavOptions {
     double samplerate = xgm::DEFAULT_RATE;
     int track = 1;
     bool quiet = false;
+    uint64_t mask = 0;
+	uint64_t mute = 0;
+    bool trigger = false;
+	bool lengthForce = false;
 };
 
 void Usage(FILE *output, int exit_code, const xgm::NSF &nsf) {
@@ -69,9 +73,15 @@ Options:
                          may be shorter than specified if the NSF program
                          terminates before outputting the specified amount of
                          audio.
+ -y, --length_force	 Force the NSF to output the specified amount of audio
+			 even if it loops/ends earlier.
  -q, --quiet             Suppress all non-error output.
  -s, --samplerate=%-6.0f The audio sample rate.
  -t, --track=%-11d Track number, starting with 1.
+ -m, --mask=<number>	 Mute a certain channel (starting with 2A03 Pulse 1 = 0) by masking.
+ -r, --mask_reverse	 Invert channel masking options to be soloing channels instead.
+ -u, --mute		 Use the masking settings set so far as muting, reset masking options.
+ -w, --trigger		 Output trigger waves instead of normal output.
 )",
         progname, defaults.channels, defaults.fade_ms, defaults.length_ms,
         defaults.samplerate, defaults.track);
@@ -82,11 +92,16 @@ Nsf2WavOptions ParseOptions(int *argc, char ***argv, const xgm::NSF &nsf) {
     static constexpr struct option longopts[] = {
         { "help", no_argument, nullptr, 'h' },
         { "length_ms", required_argument, nullptr, 'l' },
+		{ "length_force", no_argument, nullptr, 'y' },
         { "fade_ms", required_argument, nullptr, 'f' },
         { "track", required_argument, nullptr, 't' },
         { "samplerate", required_argument, nullptr, 's' },
         { "channels", required_argument, nullptr, 'c' },
         { "quiet", no_argument, nullptr, 'q' },
+        { "mask", required_argument, nullptr, 'm' },
+        { "mask_reverse", no_argument, nullptr, 'r' },
+		{ "mute", no_argument, nullptr, 'u' },
+        { "trigger", no_argument, nullptr, 'w' },
         { nullptr, 0, nullptr, 0 }
     };
     Nsf2WavOptions options(nsf);
@@ -102,6 +117,9 @@ Nsf2WavOptions ParseOptions(int *argc, char ***argv, const xgm::NSF &nsf) {
         case 't':
             options.track = std::stoi(optarg);
             break;
+		case 'y':
+			options.lengthForce = true;
+			break;
         case 'f':
             options.fade_ms = std::stoi(optarg);
             break;
@@ -110,6 +128,19 @@ Nsf2WavOptions ParseOptions(int *argc, char ***argv, const xgm::NSF &nsf) {
             break;
         case 'c':
             options.channels = std::stoi(optarg);
+            break;
+        case 'm':
+            options.mask |= 1<<std::stoi(optarg);
+            break;
+        case 'r':
+            options.mask ^= 0xFFFFFFFF; // will be 0x7FFFFFFFFFFF when EPSM gets implemented
+            break;
+        case 'w':
+            options.trigger = true;
+            break;
+		case 'u':
+            options.mute = options.mask;
+			options.mask = 0;
             break;
         case 'h':
             Usage(stdout, EXIT_SUCCESS, nsf);
@@ -280,7 +311,7 @@ int main(int argc, char *argv[]) {
         options.length_ms = nsf.nsfe_entry[nsfe_i].time;
     } else if (nsf.time_in_ms >= 0) {
         options.length_ms = nsf.time_in_ms;
-    } else {
+    } else if (!options.lengthForce){
       fprintf(
           stderr,
           "Warning: Could not detect track length, will use default of %" PRId32
@@ -313,31 +344,89 @@ int main(int argc, char *argv[]) {
     config["APU2_OPTION5"] = 0; /* disable randomized noise phase at reset */
     config["APU2_OPTION7"] = 0; /* disable randomized tri phase at reset */
 
+	if (!options.lengthForce) {
+	  config["AUTO_DETECT"] = 1;
+	  config["LOOP_NUM"] = 2;
+	  nsf.loop_num = 2;
+	  config["DETECT_INT"] = 1000;
+	}
+
+
     player.SetConfig(&config);
+
     if(!player.Load(&nsf)) {
         fprintf(stderr,"Error with player load\n");
         return EXIT_FAILURE;
     }
+
 
     player.SetPlayFreq(options.samplerate);
     player.SetChannels(options.channels);
     player.SetSong(i);
     player.Reset();
 
+
     frames  = (uint64_t)options.length_ms * options.samplerate;
     frames += (uint64_t)options.fade_ms * options.samplerate;
     constexpr uint64_t kMillisPerSecond = 1000;
     frames /= kMillisPerSecond;
+
+	if (!options.lengthForce) {
+    	uint64_t framesbackup = frames;
+		bool notYetFading = true;
+
+		while(frames && !player.fader.IsFading()) {
+		    fc = std::min(frames, kFramesToBuffer);
+		    player.Skip(fc);
+		    frames -= fc;
+		}
+
+		if (player.playtime_detected){
+	  		config["AUTO_DETECT"] = 0;
+	  config["LOOP_NUM"] = 0;
+		    frames = player.total_render + ((uint64_t)nsf.GetFadeTime()*options.samplerate/kMillisPerSecond);
+		    printf("Detected loop time successfully, it's %lu\n", frames);
+		    if (options.trigger){
+		        nsf.time_in_ms += nsf.GetFadeTime();
+		        nsf.fade_in_ms = 0;
+		    }
+		} else frames = framesbackup;
+
+		config["STOP_SEC"] = std::ceil((player.total_render + ((uint64_t)nsf.GetFadeTime()/kMillisPerSecond))/options.samplerate);
+	}	// else frames stays the same
+ 
+	config["MASK"] = options.mask; /* channel mask that shit */
+
+
+    config["TRIGGER"] = options.trigger ? 1 : 0;
+
+	if (options.trigger) {
+		config["APU1_OPTION2"] = 0;	/* Disable nonlinear mixing */
+		config["APU2_OPTION4"] = 0; /* Disable nonlinear mixing */
+		config["MMC5_OPTION0"] = 0; /* Disable nonlinear mixing */
+		config["N163_OPTION0"] = 0; /* Enable normal mixing */
+		config["FDS_OPTION0"] = 96000; /* practically disable LPF */
+	}
+
+	for (int i = 0; i < 32; i++){
+		uint64_t mask = 1<<i;
+		config.GetChannelConfig(i, "VOL") = (options.mute&mask)?0:128;
+	}
+	config.Notify(-1);
+    player.SetConfig(&config);
+    player.Reset();
 
     f = fopen(argv[1],"wb");
     if(f == NULL) {
         fprintf(stderr, "Error opening %s: %s\n", argv[1], strerror(errno));
         return 1;
     }
+
     write_wav_header(f, frames, options);
 
     while(frames) {
         fc = std::min(frames, kFramesToBuffer);
+		printf("%lu, %lu\n", frames+player.total_render, frames);
         player.Render(buf.get(), fc);
         pack_frames(pac.get(), buf.get(), fc, options.channels);
         write_frames(f, pac.get(), fc, options.channels);

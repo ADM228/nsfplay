@@ -56,6 +56,8 @@ protected:
     UINT32 env_out[2];
     UINT32 master_env_speed;
 
+    bool trigger;
+
     // 1-pole RC lowpass filter
     INT32 rc_accum;
     INT32 rc_k;
@@ -74,6 +76,7 @@ public:
     virtual void SetClock (double);
     virtual void SetOption (int, int);
     virtual void SetMask(int m){ mask = m&1; }
+    virtual void SetTrigger(bool t){ trigger = t; };
     virtual void SetStereoMix (int trk, INT16 mixl, INT16 mixr);
     virtual ITrackInfo *GetTrackInfo(int trk);
 };

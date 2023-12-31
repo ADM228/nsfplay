@@ -150,7 +150,7 @@ void NES_N106::Tick (UINT32 clocks)
 
         // fetch sample (note: N163 output is centred at 8, and inverted w.r.t 2A03)
         INT32 sample = 8 - get_sample(((phase >> 16) + off) & 0xFF);
-        fout[channel] = sample * vol;
+        fout[channel] = trigger ? phase : sample * vol;
 
         // cycle to next channel every 15 clocks
         tick_clock -= 15;

@@ -86,6 +86,7 @@ NSFPlayerConfig::NSFPlayerConfig () : PlayerConfig ()
   CreateValue("NCH",  2);
   CreateValue("BPS",  16);
   CreateValue("MASK", 0);
+	CreateValue("TRIGGER", 0);
   CreateValue("PLAY_TIME", 60*5*1000);
   CreateValue("FADE_TIME", 5*1000);
   CreateValue("STOP_SEC", 3);

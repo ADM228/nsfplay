@@ -230,7 +230,7 @@ void NES_FDS::Tick (UINT32 clocks)
 
     // final output
     if (!wav_write)
-        fout = wave[TWAV][(phase[TWAV]>>16)&0x3F] * vol_out;
+        fout = trigger ? phase[TWAV] : wave[TWAV][(phase[TWAV]>>16)&0x3F] * vol_out;
 
     // NOTE: during wav_halt, the unit still outputs (at phase 0)
     // and volume can affect it if the first sample is nonzero.

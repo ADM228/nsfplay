@@ -91,6 +91,8 @@ namespace xgm
     bool frame_irq;
     bool frame_irq_enable;
 
+    bool trigger;
+
     NES_CPU* cpu; // IRQ needs CPU access
 
     inline UINT32 calc_tri (UINT32 clocks);
@@ -118,6 +120,7 @@ namespace xgm
     virtual void SetClock (double rate);
     virtual void SetOption (int, int);
     virtual void SetMask(int m){ mask = m; }
+    virtual void SetTrigger(bool t){ trigger = t; };
     virtual void SetStereoMix (int trk, xgm::INT16 mixl, xgm::INT16 mixr);
     virtual ITrackInfo *GetTrackInfo(int trk);
 

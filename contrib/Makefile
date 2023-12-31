@@ -7,7 +7,7 @@ DYNLIB_EXT=.so
 EXE_EXT=
 INSTALL=install
 
-LIBS_ICONV = -liconv
+#LIBS_ICONV = -liconv
 
 DESTDIR=
 PREFIX=/usr/local
@@ -37,6 +37,7 @@ CXXFLAGS := $(CXXFLAGS_DEBUG)
 endif
 
 LIBXGM_CPP_SRCS = \
+	../xgm/fileutil.cpp \
 	../xgm/devices/Audio/MedianFilter.cpp \
 	../xgm/devices/Audio/echo.cpp \
 	../xgm/devices/Audio/filter.cpp \
@@ -74,6 +75,7 @@ LIBVCM_CPP_SRCS = \
 	../vcm/value.cpp
 
 LIBXGM_HEADERS = \
+	../xgm/fileutil.h \
 	../xgm/browser/browser.h \
 	../xgm/debugout.h \
 	../xgm/devices/Audio/MedianFilter.h \

@@ -1,6 +1,7 @@
 #if defined(_MSC_VER) || defined(__MINGW32__)
 #include <windows.h>
 #else
+#include <iconv.h>
 #define stricmp strcasecmp
 #endif
 
@@ -61,11 +62,23 @@ void sjis_legacy(char* s, const unsigned int length)
 	}
 	if (utf8) return; // valid UTF8, don't convert
 
+#if defined(_MSC_VER) || defined(__MINGW32__)
 	// if not valid UTF8 assume legacy shift-JIS
 	// (convenient conversion back and forth using windows wide character)
 	wchar_t w[1024];
 	MultiByteToWideChar(932,0,s,-1,w,1024);
 	WideCharToMultiByte(CP_UTF8,0,w,-1,s,length,NULL,NULL);
+#else
+  char old[length];
+  char* oldptr = &old[0];
+  char* sptr = &s[0];
+  strncpy(old, s, length);
+  size_t oldlength = length;
+  size_t newlength = length;
+  iconv_t converter = iconv_open("UTF8", "SHIFT-JIS");
+  iconv (converter, &oldptr, &oldlength, &sptr, &newlength);
+  iconv_close(converter);
+#endif
 }
 
 
