@@ -6,7 +6,9 @@
   - Added muting and masking of channels
   - Added access to the aforementioned trigger waves
 
-I (alexmush) will try to update it together with the original repository, as it is far from dead. Features can be suggested and may get added as I develop this software.
+The original Win32 GUI is not touched at all, as I can't be bothered lmao
+
+I (alexmush) will try to update it together with the original repository, as it is far from dead. Features can be suggested and may get added as I continue to improve this software.
 
 I have presumed based on text comments and readme files in the original code that it is distributed freely, and modification and redistribution is permitted. The same permissive license applies to this version of the code I maintain. You may reuse this code without restriction, and no warranty or liability is implied on my part.
 
